@@ -3,17 +3,17 @@
   import { onMount, onDestroy } from "svelte";
   import { listen } from "@tauri-apps/api/event";
   import { invoke } from "@tauri-apps/api/core";
-  import { api, Channel } from "../api";
+  import { Channel } from "../api";
   import { app, type Tab } from "../state.svelte";
   import { keysym } from "../keysym";
   import { isAppShortcut } from "../shortcuts";
-  import { readText, writeText } from "../clipboard";
+  import { readText } from "../clipboard";
+  import { paint, screenPos, buttonBit } from "../screen";
   import { MonitorSmartphone, Keyboard, ClipboardPaste, RotateCw, Maximize, Minimize } from "@lucide/svelte";
 
   /** In tiling the bar doubles as the pane header: pane is its name part, paneEnd its buttons. */
   let { tab, visible, pane, paneEnd }: { tab: Tab; visible: boolean; pane?: Snippet<[Tab]>; paneEnd?: Snippet<[Tab]> } = $props();
   let canvas: HTMLCanvasElement;
-  let ctx: CanvasRenderingContext2D | null = null;
   let size = $state({ w: 0, h: 0 });
   let fit = $state(true);
   let message = $state("");
@@ -70,41 +70,15 @@
   }
 
   function handle(buf: ArrayBuffer) {
-    const v = new DataView(buf);
-    const t = v.getUint8(0);
-    const u = (i: number) => v.getUint16(1 + i * 2, true);
-    if (t === 1) {
-      size = { w: u(0), h: u(1) };
-      canvas.width = size.w;
-      canvas.height = size.h;
-      ctx = canvas.getContext("2d");
-    } else if (!ctx) {
-      return;
-    } else if (t === 2) {
-      const [x, y, w, h] = [u(0), u(1), u(2), u(3)];
-      if (!w || !h) return;
-      const px = new Uint8ClampedArray(buf, 9, w * h * 4);
-      for (let i = 3; i < px.length; i += 4) px[i] = 255;
-      ctx.putImageData(new ImageData(px, w, h), x, y);
-    } else if (t === 3) {
-      const [dx, dy, w, h, sx, sy] = [u(0), u(1), u(2), u(3), u(4), u(5)];
-      ctx.drawImage(canvas, sx, sy, w, h, dx, dy, w, h);
-    } else if (t === 4) {
-      const [x, y] = [u(0), u(1)];
-      createImageBitmap(new Blob([new Uint8Array(buf, 9)], { type: "image/jpeg" })).then((img) => ctx?.drawImage(img, x, y));
-    } else if (t === 6) {
-      if (tab.session?.data?.shared_clipboard !== false) writeText(new TextDecoder().decode(new Uint8Array(buf, 1)));
-    }
+    const s = paint(buf, canvas, tab.session?.data?.shared_clipboard !== false);
+    if (s) size = s;
   }
 
   function pos(e: MouseEvent): [number, number] {
-    const r = canvas.getBoundingClientRect();
-    const x = Math.round(((e.clientX - r.left) / r.width) * size.w);
-    const y = Math.round(((e.clientY - r.top) / r.height) * size.h);
-    return [Math.max(0, Math.min(size.w - 1, x)), Math.max(0, Math.min(size.h - 1, y))];
+    return screenPos(canvas, size, e);
   }
 
-  const bit = (b: number) => (b === 0 ? 1 : b === 1 ? 2 : b === 2 ? 4 : 0);
+  const bit = buttonBit;
 
   onMount(() => {
     const un = listen<{ id: string; state: string; message: string }>("term-status", (e) => {

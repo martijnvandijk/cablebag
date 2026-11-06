@@ -76,6 +76,19 @@ native-tls = "0.2.18"
 tokio-native-tls = "0.3.1"
 
 
+# The IronRDP engine for Remote Desktop tabs outside Windows. Exact pins: IronRDP releases breaking
+# 0.x minors often (Devolutions/IronRDP); bump all of these together, quarterly at most.
+[target.'cfg(not(windows))'.dependencies]
+ironrdp-async = "=0.12.0"
+ironrdp-connector = "=0.12.0"
+ironrdp-graphics = "=0.11.0"
+ironrdp-input = "=0.9.0"
+ironrdp-pdu = { version = "=0.11.0", features = ["std"] }
+ironrdp-session = "=0.13.0"
+ironrdp-tls = { version = "=0.3.0", default-features = false, features = ["rustls-ring"] }
+ironrdp-tokio = "=0.12.0"
+jpeg-encoder = "0.7"
+
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.62.2", features = ["Win32_Security_Cryptography", "Win32_Foundation", "Win32_System_Memory", "Win32_System_Pipes", "Win32_System_Time", "Win32_Security", "Win32_System_JobObjects", "Win32_System_Threading", "Win32_UI_WindowsAndMessaging", "Win32_NetworkManagement_IpHelper", "Win32_Networking_WinSock", "Win32_System_WinRT", "Win32_System_Com", "Security_Credentials_UI", "Foundation"] }
 windows-future = "0.3"

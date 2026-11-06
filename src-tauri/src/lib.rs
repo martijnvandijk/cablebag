@@ -569,15 +569,24 @@ async fn rdp_input(state: State<'_, AppState>, id: String, action: serde_json::V
 }
 
 #[tauri::command]
-async fn rdp_open(app: AppHandle, id: String, session: Session, x: i32, y: i32, w: i32, h: i32, scale: u32) -> CmdResult<()> {
+#[allow(clippy::too_many_arguments)]
+async fn rdp_open(app: AppHandle, id: String, session: Session, x: i32, y: i32, w: i32, h: i32, scale: u32, on_data: Channel<InvokeResponseBody>) -> CmdResult<()> {
     if !session.id.is_empty() {
         let _ = app.state::<AppState>().store.lock().touch_session(&session.id);
     }
-    let res = rdp::open(app.clone(), id.clone(), session, rdp::Geometry { x, y, w, h, scale }).await;
+    // On Windows the channel stays unused: only the engine outside Windows draws through it, like vnc_open.
+    let out = TermOut { id: id.clone(), channel: on_data, app: app.clone(), log: None };
+    let res = rdp::open(app.clone(), id.clone(), session, rdp::Geometry { x, y, w, h, scale }, out).await;
     if let Err(e) = &res {
         let _ = tauri::Emitter::emit(&app, "term-status", serde_json::json!({"id": id, "state": "failed", "message": e.to_string()}));
     }
     res.map_err(err)
+}
+
+/// One input event or screen command of a Remote Desktop tab, without waiting for an answer.
+#[tauri::command]
+fn rdp_screen(state: State<AppState>, id: String, action: serde_json::Value) {
+    state.rdp.send(&id, action);
 }
 
 #[tauri::command]
@@ -1334,6 +1343,7 @@ pub fn run() {
             write_text_file,
             default_log_dir,
             rdp_open,
+            rdp_screen,
             rdp_snapshot,
             rdp_input,
             proxmox_exec,

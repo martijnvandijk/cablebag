@@ -489,11 +489,13 @@ export const api = {
   browserVisible: (id: string, show: boolean) => invoke<void>("browser_visible", { id, show }),
   browserCommand: (id: string, what: string, url?: string) => invoke<void>("browser_command", { id, what, url: url ?? null }),
   browserClose: (id: string) => invoke<void>("browser_close", { id }),
-  rdpOpen: (id: string, session: Session, r: { x: number; y: number; w: number; h: number }, scale: number) =>
-    invoke<void>("rdp_open", { id, session, ...r, scale }),
+  rdpOpen: (id: string, session: Session, r: { x: number; y: number; w: number; h: number }, scale: number, onData: Channel<ArrayBuffer>) =>
+    invoke<void>("rdp_open", { id, session, ...r, scale, onData }),
   rdpBounds: (id: string, r: { x: number; y: number; w: number; h: number }) => invoke<void>("rdp_bounds", { id, ...r }),
   rdpVisible: (id: string, on: boolean) => invoke<void>("rdp_visible", { id, on }),
   rdpCommand: (id: string, cmd: "cad" | "focus" | "disconnect") => invoke<void>("rdp_command", { id, cmd }),
+  /** One canvas input event of a Remote Desktop tab (outside Windows). */
+  rdpScreen: (id: string, action: Record<string, unknown>) => invoke<void>("rdp_screen", { id, action }),
   rdpClose: (id: string) => invoke<void>("rdp_close", { id }),
   /** A picture of the remote screen as it shows now (a JPEG data URL). */
   rdpSnapshot: (id: string) => invoke<string>("rdp_snapshot", { id }),
